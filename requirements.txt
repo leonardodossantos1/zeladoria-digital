@@ -5,3 +5,5 @@ pillow
 fpdf
 st-gsheets-connection
 gspread
+gspread-dataframe
+
