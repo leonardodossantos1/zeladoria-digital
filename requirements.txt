@@ -1,0 +1,6 @@
+streamlit
+pandas
+plotly
+pillow
+fpdf
+st-gsheets-connection
