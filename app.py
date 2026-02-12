@@ -22,7 +22,7 @@ st.markdown("""
 
 # --- CONEXÃO GOOGLE SHEETS ---
 # SUBSTITUA PELO SEU LINK ABAIXO:
-url = https://docs.google.com/spreadsheets/d/1sgo8CHW_Ng-ZpLs9ZWZCVsXFuP9vEW_QkgM4x5PqeDA/edit?usp=sharing
+url = "https://docs.google.com/spreadsheets/d/1sgo8CHW_Ng-ZpLs9ZWZCVsXFuP9vEW_QkgM4x5PqeDA/edit?usp=sharing"
 
 conn = st.connection("gsheets", type=GSheetsConnection)
 
@@ -154,3 +154,4 @@ with aba2:
         st.divider()
 
         st.dataframe(df, use_container_width=True)
+
