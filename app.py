@@ -11,11 +11,10 @@ import streamlit.components.v1 as components
 # --- CONFIGURAÇÕES DE PÁGINA ---
 st.set_page_config(page_title="Zeladoria Digital Pro", layout="wide", page_icon="🏛️")
 
-# URL RAW DIRETA DO GITHUB (Para o ícone do iPhone)
+# URL RAW DIRETA DO GITHUB (Identidade Visual)
 LOGO_URL = "https://raw.githubusercontent.com/leonardodossantos1/zeladoria-digital/main/logo.png"
 
-# INJEÇÃO DE JAVASCRIPT PARA FORÇAR A LOGO NO IPHONE
-# Isso insere o link da logo diretamente no cabeçalho (head) da página principal
+# INJEÇÃO PARA ÍCONE E ESTILO
 components.html(
     f"""
     <script>
@@ -23,23 +22,18 @@ components.html(
         link.rel = 'apple-touch-icon';
         link.href = '{LOGO_URL}?v={datetime.now().second}';
         window.parent.document.getElementsByTagName('head')[0].appendChild(link);
-        
-        var icon = window.parent.document.createElement('link');
-        icon.rel = 'icon';
-        icon.href = '{LOGO_URL}';
-        window.parent.document.getElementsByTagName('head')[0].appendChild(icon);
     </script>
     """,
     height=0,
 )
 
-# Estilização CSS Profissional
 st.markdown("""
     <style>
     .main { background-color: #f8f9fa; }
     .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #007bff; color: white; font-weight: bold; }
     .stTabs [aria-selected="true"] { background-color: #007bff !important; color: white !important; }
+    footer {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
@@ -80,20 +74,31 @@ def gerar_pdf(dados):
         pdf.image(dados['Caminho_Foto'], x=10, w=100)
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
-# --- HEADER ---
+# --- BARRA LATERAL (SIDEBAR) COM ASSINATURA ---
+with st.sidebar:
+    try:
+        st.image("logo.png", width=150)
+    except:
+        st.title("🏛️ Zeladoria")
+    st.divider()
+    st.markdown("### 👨‍💻 Desenvolvedor")
+    st.info("**Leonardo Dos Santos (PL-SP)**")
+    st.caption("Tecnologia e Transparência Pública")
+
+# --- HEADER PRINCIPAL ---
 col_logo, col_titulo = st.columns([1, 5])
 with col_logo:
     try:
         st.image("logo.png", width=110)
     except:
         st.write("🏛️")
-
 with col_titulo:
     st.title("Zeladoria Digital Pro")
-    st.caption("Gestão de Manutenção Urbana | Conectado ao Google Sheets")
+    st.caption("Monitoramento Urbano | Matão-SP")
 
 aba1, aba2 = st.tabs(["📝 REGISTRAR OCORRÊNCIA", "📊 DASHBOARD E GESTÃO"])
 
+# --- ABA 1: REGISTRO ---
 with aba1:
     with st.container():
         st.subheader("📋 Nova Denúncia")
@@ -108,7 +113,7 @@ with aba1:
                 endereco = st.text_input("Endereço Completo", placeholder="Rua, Número, Bairro")
                 foto = st.file_uploader("Evidência Fotográfica", type=["jpg", "png", "jpeg"])
             
-            descricao = st.text_area("Relato detalhado para o post")
+            descricao = st.text_area("Relato detalhado")
             
             if st.form_submit_button("CONCLUIR REGISTRO"):
                 if protocolo and endereco:
@@ -131,12 +136,13 @@ with aba1:
                 else:
                     st.error("Preencha Protocolo e Endereço.")
 
+# --- ABA 2: DASHBOARD ---
 with aba2:
     if df.empty:
         st.info("Nenhuma denúncia encontrada.")
     else:
         m1, m2, m3 = st.columns(3)
-        m1.metric("Total", len(df))
+        m1.metric("Total de Ocorrências", len(df))
         m2.metric("Concluídos", len(df[df["Status"] == "Concluído"]))
         m3.metric("Pendentes", len(df[df["Status"] == "Sem Resposta"]))
         
@@ -144,21 +150,35 @@ with aba2:
         col_graf, col_gestao = st.columns([1.2, 1])
         
         with col_graf:
-            fig = px.pie(df, names='Status', hole=.4, color='Status', 
-                         color_discrete_map={'Sem Resposta': '#E74C3C', 'Em Análise': '#F1C40F', 'Em Andamento': '#3498DB', 'Concluído': '#2ECC71'})
+            fig = px.pie(df, names='Status', hole=.4, title="Resumo de Status",
+                         color='Status', color_discrete_map={'Sem Resposta': '#E74C3C', 'Em Análise': '#F1C40F', 'Em Andamento': '#3498DB', 'Concluído': '#2ECC71'})
             st.plotly_chart(fig, use_container_width=True)
 
         with col_gestao:
-            prot_sel = st.selectbox("Protocolo:", df["Protocolo"].unique())
+            prot_sel = st.selectbox("Selecione para Gestão:", df["Protocolo"].unique())
             resumo = df[df["Protocolo"] == prot_sel].iloc[0]
             with st.container(border=True):
                 if os.path.exists(str(resumo['Caminho_Foto'])):
                     st.image(resumo['Caminho_Foto'], use_container_width=True)
                 pdf_bytes = gerar_pdf(resumo)
-                st.download_button("📥 BAIXAR PDF", pdf_bytes, f"Relatorio_{prot_sel}.pdf", "application/pdf")
-                novo_status = st.selectbox("Status:", ["Sem Resposta", "Em Análise", "Em Andamento", "Concluído"],
+                st.download_button("📥 BAIXAR RELATÓRIO PDF", pdf_bytes, f"Relatorio_{prot_sel}.pdf", "application/pdf")
+                novo_status = st.selectbox("Mudar Status:", ["Sem Resposta", "Em Análise", "Em Andamento", "Concluído"],
                                            index=["Sem Resposta", "Em Análise", "Em Andamento", "Concluído"].index(resumo['Status']))
-                if st.button("ATUALIZAR"):
+                if st.button("SALVAR ATUALIZAÇÃO"):
                     df.loc[df["Protocolo"] == prot_sel, "Status"] = novo_status
                     conn.update(spreadsheet=url, data=df)
                     st.rerun()
+
+# --- RODAPÉ DE ASSINATURA ---
+st.markdown(
+    """
+    <div style='text-align: center; color: #6c757d; padding: 20px;'>
+        <hr style='border: 0.5px solid #e9ecef;'>
+        <p style='font-size: 0.85em;'>
+            <strong>Developed by Leonardo Dos Santos (PL-SP)</strong><br>
+            <i>Tecnologia para uma fiscalização urbana eficiente e transparente.</i>
+        </p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
