@@ -11,7 +11,7 @@ from fpdf import FPDF
 st.set_page_config(page_title="Zeladoria Digital Pro", layout="wide", page_icon="🏛️")
 
 # URL Direta da sua logo no GitHub (Formato Raw para o iOS reconhecer)
-LOGO_URL = "https://raw.githubusercontent.com/leonardodossantos1/zeladoria-digital/main/logo.png"
+LOGO_URL = "https://raw.githubusercontent.com/leonardodossantos1/zeladoria-digital/main/logo.png?v=1"
 
 # Forçar o iPhone a usar a sua logo como ícone de App e remover barras do navegador
 st.markdown(
@@ -158,3 +158,4 @@ with aba2:
                     df.loc[df["Protocolo"] == prot_sel, "Status"] = novo_status
                     conn.update(spreadsheet=url, data=df)
                     st.rerun()
+
