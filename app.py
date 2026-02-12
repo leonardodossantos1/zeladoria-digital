@@ -10,24 +10,26 @@ from fpdf import FPDF
 # --- CONFIGURAÇÕES DE PÁGINA ---
 st.set_page_config(page_title="Zeladoria Digital Pro", layout="wide", page_icon="🏛️")
 
-# Truque para o iPhone reconhecer a logo como ícone do App na tela de início
+# URL Direta da sua logo no GitHub (Formato Raw para o iOS reconhecer)
+LOGO_URL = "https://raw.githubusercontent.com/leonardodossantos1/zeladoria-digital/main/logo.png"
+
+# Forçar o iPhone a usar a sua logo como ícone de App e remover barras do navegador
 st.markdown(
     f"""
-    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/leonardodossantos1/zeladoria-digital/main/logo.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="{LOGO_URL}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{LOGO_URL}">
+    <meta name="apple-mobile-web-app-title" content="Zeladoria">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <style>
+        .main {{ background-color: #f8f9fa; }}
+        .stMetric {{ background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }}
+        .stButton>button {{ width: 100%; border-radius: 5px; height: 3em; background-color: #007bff; color: white; font-weight: bold; }}
+        .stTabs [aria-selected="true"] {{ background-color: #007bff !important; color: white !important; }}
+    </style>
     """,
     unsafe_allow_html=True
 )
-
-# Estilização CSS Profissional
-st.markdown("""
-    <style>
-    .main { background-color: #f8f9fa; }
-    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #007bff; color: white; font-weight: bold; }
-    .stTabs [aria-selected="true"] { background-color: #007bff !important; color: white !important; }
-    div[data-testid="stExpander"] { background-color: white; border-radius: 10px; }
-    </style>
-    """, unsafe_allow_html=True)
 
 # --- CONEXÃO GOOGLE SHEETS ---
 url = "https://docs.google.com/spreadsheets/d/1sgo8CHW_Ng-ZpLs9ZWZCVsXFuP9vEW_QkgM4x5PqeDA/edit?usp=sharing"
@@ -36,7 +38,6 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 
 def carregar_dados():
     try:
-        # Lê as colunas de A até H
         data = conn.read(spreadsheet=url, usecols=[0,1,2,3,4,5,6,7])
         return data
     except:
@@ -54,43 +55,34 @@ def gerar_pdf(dados):
     pdf.set_font("Arial", "B", 16)
     pdf.cell(200, 10, "Relatorio Oficial de Zeladoria", ln=True, align="C")
     pdf.ln(10)
-    
     pdf.set_font("Arial", "", 12)
     pdf.cell(200, 10, f"Protocolo Interno: {dados['Protocolo']}", ln=True)
     pdf.cell(200, 10, f"Protocolo Ouvidoria: {dados['Ouvidoria']}", ln=True)
-    pdf.cell(200, 10, f"Data do Registro: {dados['Data']}", ln=True)
+    pdf.cell(200, 10, f"Data: {dados['Data']}", ln=True)
     pdf.cell(200, 10, f"Categoria: {dados['Tipo']}", ln=True)
     pdf.cell(200, 10, f"Local: {dados['Endereço']}", ln=True)
     pdf.cell(200, 10, f"Status: {dados['Status']}", ln=True)
     pdf.ln(5)
-    
-    pdf.set_font("Arial", "B", 12)
-    pdf.cell(200, 10, "Descricao dos Fatos:", ln=True)
-    pdf.set_font("Arial", "", 12)
-    pdf.multi_cell(0, 10, f"{dados['Descrição']}")
-    
+    pdf.multi_cell(0, 10, f"Descricao: {dados['Descrição']}")
     if os.path.exists(str(dados['Caminho_Foto'])):
         pdf.ln(10)
         pdf.image(dados['Caminho_Foto'], x=10, w=100)
-        
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
-# --- HEADER COM LOGO ---
+# --- HEADER ---
 col_logo, col_titulo = st.columns([1, 5])
 with col_logo:
     try:
-        logo_img = Image.open("logo.png")
-        st.image(logo_img, width=110)
+        st.image("logo.png", width=110)
     except:
-        st.write("🏛️") # Emoji reserva caso a logo não carregue
+        st.write("🏛️")
 
 with col_titulo:
     st.title("Zeladoria Digital Pro")
-    st.caption("Gestão Inteligente de Manutenção Urbana | Conectado ao Google Sheets")
+    st.caption("Gestão de Manutenção Urbana | Matão-SP")
 
 aba1, aba2 = st.tabs(["📝 REGISTRAR OCORRÊNCIA", "📊 DASHBOARD E GESTÃO"])
 
-# --- ABA 1: REGISTRO ---
 with aba1:
     with st.container():
         st.subheader("📋 Nova Denúncia")
@@ -98,18 +90,19 @@ with aba1:
             col_a, col_b = st.columns(2)
             with col_a:
                 protocolo = st.text_input("Número do Protocolo Interno", placeholder="Ex: 001/2026")
-                ouvidoria = st.text_input("Protocolo da Ouvidoria (opcional)", placeholder="Ex: n°2212348")
-                tipo = st.selectbox("O que aconteceu?", [
+                ouvidoria = st.text_input("Protocolo da Ouvidoria", placeholder="Ex: n°2212348")
+                opcoes = [
                     "Buraco", "Mato Alto", "Iluminação", "Calçada", "Bueiro Entupido",
                     "Transporte Público", "Mobilidade Urbana", "Trânsito", 
                     "Desalinhamento De Fios Em Rede Pública", "Canil", "Dengue", 
                     "Água", "Esgoto", "Outros"
-                ])
+                ]
+                tipo = st.selectbox("O que aconteceu?", opcoes)
             with col_b:
                 endereco = st.text_input("Endereço Completo", placeholder="Rua, Número, Bairro")
                 foto = st.file_uploader("Evidência Fotográfica", type=["jpg", "png", "jpeg"])
             
-            descricao = st.text_area("Relato detalhado para o post e relatório")
+            descricao = st.text_area("Relato detalhado")
             
             if st.form_submit_button("CONCLUIR REGISTRO"):
                 if protocolo and endereco:
@@ -121,32 +114,24 @@ with aba1:
                             f.write(foto.getbuffer())
                     
                     nova_linha = {
-                        "Protocolo": protocolo, 
-                        "Ouvidoria": ouvidoria if ouvidoria else "Não informado",
+                        "Protocolo": protocolo, "Ouvidoria": ouvidoria if ouvidoria else "Não informado",
                         "Tipo": tipo, "Endereço": endereco, "Data": datetime.now().strftime("%d/%m/%Y"), 
                         "Status": "Sem Resposta", "Descrição": descricao, "Caminho_Foto": caminho_foto
                     }
                     
-                    # Salva no Google Sheets
                     df_atualizado = pd.concat([df, pd.DataFrame([nova_linha])], ignore_index=True)
                     conn.update(spreadsheet=url, data=df_atualizado)
-                    
-                    st.success(f"✅ Protocolo {protocolo} enviado para a nuvem!")
-                    
-                    with st.expander("✨ Sugestão para Redes Sociais"):
-                        texto = f"🚨 DESCASO: {tipo.upper()}!\n📍 Local: {endereco}\n📝 Detalhes: {descricao}\n📞 Ouvidoria: {ouvidoria}\n\n#Zeladoria #Cidadania #Fiscalização"
-                        st.code(texto)
+                    st.success("✅ Salvo com sucesso!")
+                    st.rerun()
                 else:
-                    st.error("Campos obrigatórios: Protocolo Interno e Endereço.")
+                    st.error("Preencha Protocolo e Endereço.")
 
-# --- ABA 2: DASHBOARD ---
 with aba2:
     if df.empty:
-        st.info("Nenhuma denúncia encontrada na base de dados.")
+        st.info("Base de dados vazia.")
     else:
-        # Cards de Resumo
         m1, m2, m3 = st.columns(3)
-        m1.metric("Total de Registros", len(df))
+        m1.metric("Total", len(df))
         m2.metric("Concluídos", len(df[df["Status"] == "Concluído"]))
         m3.metric("Pendentes", len(df[df["Status"] == "Sem Resposta"]))
         
@@ -154,35 +139,22 @@ with aba2:
         col_graf, col_gestao = st.columns([1.2, 1])
         
         with col_graf:
-            st.subheader("📈 Estatísticas")
             fig = px.pie(df, names='Status', hole=.4, color='Status', 
                          color_discrete_map={'Sem Resposta': '#E74C3C', 'Em Análise': '#F1C40F', 
                                             'Em Andamento': '#3498DB', 'Concluído': '#2ECC71'})
             st.plotly_chart(fig, use_container_width=True)
 
         with col_gestao:
-            st.subheader("🔍 Gestão de Protocolo")
-            prot_sel = st.selectbox("Localizar por Protocolo:", df["Protocolo"].unique())
+            prot_sel = st.selectbox("Protocolo:", df["Protocolo"].unique())
             resumo = df[df["Protocolo"] == prot_sel].iloc[0]
-            
             with st.container(border=True):
                 if os.path.exists(str(resumo['Caminho_Foto'])):
                     st.image(resumo['Caminho_Foto'], use_container_width=True)
-                
-                # Relatório PDF
                 pdf_bytes = gerar_pdf(resumo)
-                st.download_button("📥 EXPORTAR RELATÓRIO PDF", pdf_bytes, f"Relatorio_{prot_sel}.pdf", "application/pdf")
-                
-                st.write(f"**📞 Ouvidoria:** {resumo['Ouvidoria']}")
-                novo_status = st.selectbox("Atualizar Status:", ["Sem Resposta", "Em Análise", "Em Andamento", "Concluído"],
+                st.download_button("📥 BAIXAR PDF", pdf_bytes, f"Relatorio_{prot_sel}.pdf", "application/pdf")
+                novo_status = st.selectbox("Status:", ["Sem Resposta", "Em Análise", "Em Andamento", "Concluído"],
                                            index=["Sem Resposta", "Em Análise", "Em Andamento", "Concluído"].index(resumo['Status']))
-                
-                if st.button("SALVAR MUDANÇA"):
+                if st.button("ATUALIZAR"):
                     df.loc[df["Protocolo"] == prot_sel, "Status"] = novo_status
                     conn.update(spreadsheet=url, data=df)
-                    st.success("Planilha atualizada!")
                     st.rerun()
-
-        st.divider()
-        st.subheader("📋 Tabela Geral")
-        st.dataframe(df, use_container_width=True)
