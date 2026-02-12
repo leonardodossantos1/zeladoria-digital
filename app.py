@@ -101,3 +101,88 @@ with aba1:
                 ouvidoria = st.text_input("Protocolo da Ouvidoria (opcional)", placeholder="Ex: n°2212348")
                 tipo = st.selectbox("O que aconteceu?", [
                     "Buraco", "Mato Alto", "Iluminação", "Calçada", "Bueiro Entupido",
+                    "Transporte Público", "Mobilidade Urbana", "Trânsito", 
+                    "Desalinhamento De Fios Em Rede Pública", "Canil", "Dengue", 
+                    "Água", "Esgoto", "Outros"
+                ])
+            with col_b:
+                endereco = st.text_input("Endereço Completo", placeholder="Rua, Número, Bairro")
+                foto = st.file_uploader("Evidência Fotográfica", type=["jpg", "png", "jpeg"])
+            
+            descricao = st.text_area("Relato detalhado para o post e relatório")
+            
+            if st.form_submit_button("CONCLUIR REGISTRO"):
+                if protocolo and endereco:
+                    caminho_foto = "fotos/no_image.jpg"
+                    if foto:
+                        nome_limpo = protocolo.replace('/', '_').replace('\\', '_')
+                        caminho_foto = f"{PASTA_FOTOS}/{nome_limpo}.jpg"
+                        with open(caminho_foto, "wb") as f:
+                            f.write(foto.getbuffer())
+                    
+                    nova_linha = {
+                        "Protocolo": protocolo, 
+                        "Ouvidoria": ouvidoria if ouvidoria else "Não informado",
+                        "Tipo": tipo, "Endereço": endereco, "Data": datetime.now().strftime("%d/%m/%Y"), 
+                        "Status": "Sem Resposta", "Descrição": descricao, "Caminho_Foto": caminho_foto
+                    }
+                    
+                    # Salva no Google Sheets
+                    df_atualizado = pd.concat([df, pd.DataFrame([nova_linha])], ignore_index=True)
+                    conn.update(spreadsheet=url, data=df_atualizado)
+                    
+                    st.success(f"✅ Protocolo {protocolo} enviado para a nuvem!")
+                    
+                    with st.expander("✨ Sugestão para Redes Sociais"):
+                        texto = f"🚨 DESCASO: {tipo.upper()}!\n📍 Local: {endereco}\n📝 Detalhes: {descricao}\n📞 Ouvidoria: {ouvidoria}\n\n#Zeladoria #Cidadania #Fiscalização"
+                        st.code(texto)
+                else:
+                    st.error("Campos obrigatórios: Protocolo Interno e Endereço.")
+
+# --- ABA 2: DASHBOARD ---
+with aba2:
+    if df.empty:
+        st.info("Nenhuma denúncia encontrada na base de dados.")
+    else:
+        # Cards de Resumo
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Total de Registros", len(df))
+        m2.metric("Concluídos", len(df[df["Status"] == "Concluído"]))
+        m3.metric("Pendentes", len(df[df["Status"] == "Sem Resposta"]))
+        
+        st.divider()
+        col_graf, col_gestao = st.columns([1.2, 1])
+        
+        with col_graf:
+            st.subheader("📈 Estatísticas")
+            fig = px.pie(df, names='Status', hole=.4, color='Status', 
+                         color_discrete_map={'Sem Resposta': '#E74C3C', 'Em Análise': '#F1C40F', 
+                                            'Em Andamento': '#3498DB', 'Concluído': '#2ECC71'})
+            st.plotly_chart(fig, use_container_width=True)
+
+        with col_gestao:
+            st.subheader("🔍 Gestão de Protocolo")
+            prot_sel = st.selectbox("Localizar por Protocolo:", df["Protocolo"].unique())
+            resumo = df[df["Protocolo"] == prot_sel].iloc[0]
+            
+            with st.container(border=True):
+                if os.path.exists(str(resumo['Caminho_Foto'])):
+                    st.image(resumo['Caminho_Foto'], use_container_width=True)
+                
+                # Relatório PDF
+                pdf_bytes = gerar_pdf(resumo)
+                st.download_button("📥 EXPORTAR RELATÓRIO PDF", pdf_bytes, f"Relatorio_{prot_sel}.pdf", "application/pdf")
+                
+                st.write(f"**📞 Ouvidoria:** {resumo['Ouvidoria']}")
+                novo_status = st.selectbox("Atualizar Status:", ["Sem Resposta", "Em Análise", "Em Andamento", "Concluído"],
+                                           index=["Sem Resposta", "Em Análise", "Em Andamento", "Concluído"].index(resumo['Status']))
+                
+                if st.button("SALVAR MUDANÇA"):
+                    df.loc[df["Protocolo"] == prot_sel, "Status"] = novo_status
+                    conn.update(spreadsheet=url, data=df)
+                    st.success("Planilha atualizada!")
+                    st.rerun()
+
+        st.divider()
+        st.subheader("📋 Tabela Geral")
+        st.dataframe(df, use_container_width=True)
