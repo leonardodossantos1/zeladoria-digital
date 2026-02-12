@@ -6,34 +6,45 @@ import os
 from datetime import datetime
 from PIL import Image
 from fpdf import FPDF
+import streamlit.components.v1 as components
 
 # --- CONFIGURAÇÕES DE PÁGINA ---
 st.set_page_config(page_title="Zeladoria Digital Pro", layout="wide", page_icon="🏛️")
 
-# URL Direta da sua logo no GitHub (Formato Raw para o iOS reconhecer)
-LOGO_URL = "https://raw.githubusercontent.com/leonardodossantos1/zeladoria-digital/main/logo.png?v=1"
+# URL RAW DIRETA DO GITHUB (Para o ícone do iPhone)
+LOGO_URL = "https://raw.githubusercontent.com/leonardodossantos1/zeladoria-digital/main/logo.png"
 
-# Forçar o iPhone a usar a sua logo como ícone de App e remover barras do navegador
-st.markdown(
+# INJEÇÃO DE JAVASCRIPT PARA FORÇAR A LOGO NO IPHONE
+# Isso insere o link da logo diretamente no cabeçalho (head) da página principal
+components.html(
     f"""
-    <link rel="apple-touch-icon" sizes="180x180" href="{LOGO_URL}">
-    <link rel="icon" type="image/png" sizes="32x32" href="{LOGO_URL}">
-    <meta name="apple-mobile-web-app-title" content="Zeladoria">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <style>
-        .main {{ background-color: #f8f9fa; }}
-        .stMetric {{ background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }}
-        .stButton>button {{ width: 100%; border-radius: 5px; height: 3em; background-color: #007bff; color: white; font-weight: bold; }}
-        .stTabs [aria-selected="true"] {{ background-color: #007bff !important; color: white !important; }}
-    </style>
+    <script>
+        var link = window.parent.document.createElement('link');
+        link.rel = 'apple-touch-icon';
+        link.href = '{LOGO_URL}?v={datetime.now().second}';
+        window.parent.document.getElementsByTagName('head')[0].appendChild(link);
+        
+        var icon = window.parent.document.createElement('link');
+        icon.rel = 'icon';
+        icon.href = '{LOGO_URL}';
+        window.parent.document.getElementsByTagName('head')[0].appendChild(icon);
+    </script>
     """,
-    unsafe_allow_html=True
+    height=0,
 )
+
+# Estilização CSS Profissional
+st.markdown("""
+    <style>
+    .main { background-color: #f8f9fa; }
+    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #007bff; color: white; font-weight: bold; }
+    .stTabs [aria-selected="true"] { background-color: #007bff !important; color: white !important; }
+    </style>
+    """, unsafe_allow_html=True)
 
 # --- CONEXÃO GOOGLE SHEETS ---
 url = "https://docs.google.com/spreadsheets/d/1sgo8CHW_Ng-ZpLs9ZWZCVsXFuP9vEW_QkgM4x5PqeDA/edit?usp=sharing"
-
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def carregar_dados():
@@ -79,7 +90,7 @@ with col_logo:
 
 with col_titulo:
     st.title("Zeladoria Digital Pro")
-    st.caption("Gestão de Manutenção Urbana | Matão-SP")
+    st.caption("Gestão de Manutenção Urbana | Conectado ao Google Sheets")
 
 aba1, aba2 = st.tabs(["📝 REGISTRAR OCORRÊNCIA", "📊 DASHBOARD E GESTÃO"])
 
@@ -91,18 +102,13 @@ with aba1:
             with col_a:
                 protocolo = st.text_input("Número do Protocolo Interno", placeholder="Ex: 001/2026")
                 ouvidoria = st.text_input("Protocolo da Ouvidoria", placeholder="Ex: n°2212348")
-                opcoes = [
-                    "Buraco", "Mato Alto", "Iluminação", "Calçada", "Bueiro Entupido",
-                    "Transporte Público", "Mobilidade Urbana", "Trânsito", 
-                    "Desalinhamento De Fios Em Rede Pública", "Canil", "Dengue", 
-                    "Água", "Esgoto", "Outros"
-                ]
+                opcoes = ["Buraco", "Mato Alto", "Iluminação", "Calçada", "Bueiro Entupido", "Transporte Público", "Mobilidade Urbana", "Trânsito", "Desalinhamento De Fios Em Rede Pública", "Canil", "Dengue", "Água", "Esgoto", "Outros"]
                 tipo = st.selectbox("O que aconteceu?", opcoes)
             with col_b:
                 endereco = st.text_input("Endereço Completo", placeholder="Rua, Número, Bairro")
                 foto = st.file_uploader("Evidência Fotográfica", type=["jpg", "png", "jpeg"])
             
-            descricao = st.text_area("Relato detalhado")
+            descricao = st.text_area("Relato detalhado para o post")
             
             if st.form_submit_button("CONCLUIR REGISTRO"):
                 if protocolo and endereco:
@@ -118,17 +124,16 @@ with aba1:
                         "Tipo": tipo, "Endereço": endereco, "Data": datetime.now().strftime("%d/%m/%Y"), 
                         "Status": "Sem Resposta", "Descrição": descricao, "Caminho_Foto": caminho_foto
                     }
-                    
                     df_atualizado = pd.concat([df, pd.DataFrame([nova_linha])], ignore_index=True)
                     conn.update(spreadsheet=url, data=df_atualizado)
-                    st.success("✅ Salvo com sucesso!")
+                    st.success("✅ Protocolo salvo com sucesso!")
                     st.rerun()
                 else:
                     st.error("Preencha Protocolo e Endereço.")
 
 with aba2:
     if df.empty:
-        st.info("Base de dados vazia.")
+        st.info("Nenhuma denúncia encontrada.")
     else:
         m1, m2, m3 = st.columns(3)
         m1.metric("Total", len(df))
@@ -140,8 +145,7 @@ with aba2:
         
         with col_graf:
             fig = px.pie(df, names='Status', hole=.4, color='Status', 
-                         color_discrete_map={'Sem Resposta': '#E74C3C', 'Em Análise': '#F1C40F', 
-                                            'Em Andamento': '#3498DB', 'Concluído': '#2ECC71'})
+                         color_discrete_map={'Sem Resposta': '#E74C3C', 'Em Análise': '#F1C40F', 'Em Andamento': '#3498DB', 'Concluído': '#2ECC71'})
             st.plotly_chart(fig, use_container_width=True)
 
         with col_gestao:
@@ -158,4 +162,3 @@ with aba2:
                     df.loc[df["Protocolo"] == prot_sel, "Status"] = novo_status
                     conn.update(spreadsheet=url, data=df)
                     st.rerun()
-
